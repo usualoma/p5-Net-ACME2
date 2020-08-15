@@ -510,6 +510,36 @@ sub get_certificate_chain {
 
 #----------------------------------------------------------------------
 
+=head2 $cert = I<OBJ>->get_certificate_chains( $ORDER )
+
+Fetches all the $ORDER’s certificate chains and returns
+a list of them in the format implied by the
+C<application/pem-certificate-chain> MIME type. See the ACME
+protocol specification for details about this format.
+
+This list contains the default certificate chain and the alternate
+one pointed by the link header.
+
+=cut
+
+sub get_certificate_chains {
+    my ($self, $order) = @_;
+
+    my $resp = $self->_post_as_get( $order->certificate() );
+    my @chains = ($resp->content());
+
+    if (my $links = $resp->header('link')) {
+        for my $link (ref $links ? @$links : $links) {
+            next unless $link =~ m/\s*<([^>]+)>\s*;\s*rel\s*=\s*"alternate"/;
+            push @chains, $self->_post_as_get( $1 )->content();
+        }
+    }
+
+    return \@chains;
+}
+
+#----------------------------------------------------------------------
+
 sub _key_thumbprint {
     my ($self) = @_;
 
